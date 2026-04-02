@@ -6,6 +6,9 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: write
+
 jobs:
   test-and-deploy:
     runs-on: ubuntu-latest
@@ -42,5 +45,9 @@ jobs:
           git config user.name "GitHub Actions Bot"
           git config user.email "actions@github.com"
           git add server/
-          git diff --staged --quiet || git commit -m "Deploy: update server files after successful tests"
-          git push
+          if git diff --staged --quiet; then
+            echo "No deployed file changes to commit"
+            exit 0
+          fi
+          git commit -m "Deploy: update server files after successful tests"
+          git push origin HEAD:${GITHUB_REF_NAME}
