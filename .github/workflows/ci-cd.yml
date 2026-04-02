@@ -1,0 +1,46 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test
+
+      - name: Build project
+        run: npm run build
+
+      # Деплой в server/ ТОЛЬКО если тесты прошли и это пуш в main
+      - name: Deploy to server folder
+        if: success() && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          rm -rf server/*
+          cp -r dist/* server/
+
+      - name: Commit and push deployed files
+        if: success() && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          git config user.name "GitHub Actions Bot"
+          git config user.email "actions@github.com"
+          git add server/
+          git diff --staged --quiet || git commit -m "Deploy: update server files after successful tests"
+          git push
